@@ -146,7 +146,7 @@
   <!-- ================= USER: PASSBOOK VIEW ================= -->
   <div id="passbookView" class="container hidden">
     <div class="card">
-      <!-- Header แสดงเฉพาะชื่อ และ ยอดคงเหลือ ตามที่ร้องขอ -->
+      <!-- Header แสดงเฉพาะชื่อ และ ยอดคงเหลือ -->
       <div class="passbook-hero">
         <div>
           <h2 id="pbName" style="font-size:22px;"></h2>
@@ -211,6 +211,7 @@
 
   <script>
     // ============ CONFIG ============
+    // 🟢 เพิ่ม Cache Buster (?v=...) เพื่อบังคับให้ดึงข้อมูลใหม่เสมอ ไม่ติด Cache
     const API_URL = 'https://script.google.com/macros/s/AKfycbzXi6lTn7cPrlC-z9bOjsJORhgsBM-ymIj2vjfh8O03h79rV8QhM03cEJGpey110d58/exec';
     const USER_TOKEN_KEY = 'saving_auth_token';
     const ADMIN_TOKEN_KEY = 'saving_admin_token';
@@ -226,7 +227,9 @@
     function fmt(n) { return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     
     async function api(action, payload = {}, token = '') {
-      const res = await fetch(API_URL, {
+      // ใส่ timestamp ต่อท้าย URL ป้องกัน Browser Cache
+      const url = API_URL + '?t=' + new Date().getTime();
+      const res = await fetch(url, {
         method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action, payload, token }), redirect: 'follow',
       });
@@ -304,8 +307,13 @@
         $('#pbName').textContent = r.user.firstName + ' ' + r.user.lastName;
         $('#pbGrade').textContent = 'ชั้น ' + r.user.grade;
         
-        // 🟢 คำนวณยอดคงเหลือแบบสะสม (Running Balance) เพื่อให้เป๊ะเหมือนในชีท
-        let runningBalance = r.transactions.length > 0 ? r.transactions[0].prevBalance : 0;
+        // 🟢 คำนวณยอดคงเหลือแบบสะสมใหม่ (Running Balance) ตั้งแต่แถวแรกสุด
+        // เพื่อให้ได้ยอดที่ถูกต้อง 100% ไม่ว่าใน Sheet สูตรจะเพี้ยนหรือไม่
+        let runningBalance = 0;
+        if (r.transactions.length > 0) {
+            // เอายอดยกมาของแถวแรกสุดเป็นจุดเริ่มต้น (ถ้ามี)
+            runningBalance = r.transactions[0].prevBalance || 0;
+        }
         
         r.transactions.forEach(t => {
             runningBalance += t.deposit;
@@ -314,14 +322,15 @@
             t.calculatedBalance = runningBalance;
         });
 
-        // อัปเดตยอดคงเหลือล่าสุดด้านบน (ใช้ยอดที่คำนวณได้จริงเพื่อความแม่นยำ)
+        // อัปเดตยอดคงเหลือล่าสุดด้านบน
         if (r.transactions.length > 0) {
+            // รายการสุดท้ายคือล่าสุด
             $('#pbBalance').textContent = fmt(r.transactions[r.transactions.length - 1].calculatedBalance);
         } else {
             $('#pbBalance').textContent = fmt(0);
         }
         
-        // สร้างตารางรายการ (เรียงจากใหม่ไปเก่า โดยใช้ยอด calculatedBalance)
+        // สร้างตารางรายการ (ย้อนกลับจากใหม่ไปเก่า โดยใช้ยอด calculatedBalance ที่คำนวณใหม่)
         $('#txnBody').innerHTML = r.transactions.length ? r.transactions.reverse().map(t => {
           const depText = t.deposit > 0 ? '+' + fmt(t.deposit) : '-';
           const witText = t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-';
