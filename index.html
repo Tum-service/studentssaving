@@ -10,7 +10,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Sarabun', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
     .app-header { background: linear-gradient(135deg, var(--primary), #0e2746); color: #fff; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
-    .container { max-width: 1000px; margin: 0 auto; padding: 20px 16px; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px 16px; }
     .card { background: var(--card); border-radius: 12px; box-shadow: 0 2px 8px rgba(26,61,109,.08); border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px; }
     .auth-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 80px); padding: 20px; }
     .auth-card { width: 100%; max-width: 400px; }
@@ -25,22 +25,20 @@
     .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
     .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
     .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-    .passbook-hero { background: linear-gradient(135deg, var(--primary), #2c5a99); color: #fff; padding: 24px; display: flex; justify-content: space-between; }
-    .passbook-hero .balance-value { font-size: 28px; font-weight: 800; color: var(--accent); }
-    .stats-row { display: flex; border-bottom: 1px solid var(--border); background: #fafbfc; }
-    .stat { flex: 1; padding: 16px; text-align: center; border-right: 1px solid var(--border); }
-    .stat:last-child { border-right: none; }
-    .stat .label { font-size: 12px; color: var(--muted); }
-    .stat .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
-    .stat.deposit .value { color: var(--success); }
-    .stat.withdraw .value { color: var(--danger); }
+    
+    /* Passbook Styles */
+    .passbook-hero { background: linear-gradient(135deg, var(--primary), #2c5a99); color: #fff; padding: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .passbook-hero .balance-value { font-size: 32px; font-weight: 800; color: var(--accent); }
+    
     .txn-table { width: 100%; border-collapse: collapse; }
-    .txn-table th { background: var(--primary); color: #fff; padding: 12px; text-align: left; font-size: 12px; }
-    .txn-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
-    .txn-table .num { text-align: right; }
+    .txn-table th { background: var(--primary); color: #fff; padding: 12px; text-align: center; font-size: 13px; font-weight: 600; }
+    .txn-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 15px; text-align: center; }
+    .txn-table tr:hover { background-color: #f8faff; }
+    .txn-table .num { text-align: right; font-variant-numeric: tabular-nums; }
     .txn-table .deposit { color: var(--success); font-weight: 600; }
     .txn-table .withdraw { color: var(--danger); font-weight: 600; }
     .txn-table .balance { font-weight: 700; color: var(--primary); }
+    
     .alert { padding: 12px; border-radius: 8px; margin: 0 24px 16px; font-size: 14px; }
     .alert-error { background: #fee; color: var(--danger); }
     .alert-success { background: #e8f5ec; color: var(--success); }
@@ -148,22 +146,33 @@
   <!-- ================= USER: PASSBOOK VIEW ================= -->
   <div id="passbookView" class="container hidden">
     <div class="card">
+      <!-- Header แสดงเฉพาะชื่อ และ ยอดคงเหลือ ตามที่ร้องขอ -->
       <div class="passbook-hero">
-        <div><h2 id="pbName" style="font-size:20px;"></h2><div id="pbGrade" style="font-size:13px; opacity:.8"></div></div>
-        <div style="text-align:right"><div style="font-size:12px;">ยอดคงเหลือ</div><div class="balance-value" id="pbBalance">0.00</div></div>
+        <div>
+          <h2 id="pbName" style="font-size:22px;"></h2>
+          <div id="pbGrade" style="font-size:14px; opacity:.8; margin-top:4px;"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px; opacity:.8; margin-bottom:4px;">ยอดคงเหลือ</div>
+          <div class="balance-value" id="pbBalance">0.00</div>
+        </div>
       </div>
-      <div class="stats-row">
-        <div class="stat deposit"><div class="label">ฝากรวม</div><div class="value" id="pbTotalDeposit">0.00</div></div>
-        <div class="stat withdraw"><div class="label">ถอนรวม</div><div class="value" id="pbTotalWithdraw">0.00</div></div>
-        <div class="stat" style="color:var(--primary)"><div class="label">โอนรวม</div><div class="value" id="pbTotalTransfer">0.00</div></div>
+      
+      <div style="padding:12px 16px; background:#fafbfc; font-size:12px; display:flex; justify-content:space-between; border-bottom:1px solid var(--border);">
+        <span style="color:var(--muted);">อัปเดตล่าสุด: <span id="pbUpdated"></span></span>
+        <button class="btn btn-ghost" onclick="loadPassbook()" style="padding:4px 12px; font-size:12px; border-radius:4px;">↻ รีเฟรช</button>
       </div>
-      <div style="padding:12px; background:#fafbfc; font-size:12px; display:flex; justify-content:space-between;">
-        <span>อัปเดต: <span id="pbUpdated"></span></span>
-        <button class="btn btn-ghost" onclick="loadPassbook()" style="padding:4px 8px; font-size:12px;">↻ รีเฟรช</button>
-      </div>
+      
       <div style="overflow-x:auto;">
         <table class="txn-table">
-          <thead><tr><th>วันที่</th><th class="num">ฝาก</th><th class="num">ถอน</th><th class="num">คงเหลือ</th></tr></thead>
+          <thead>
+            <tr>
+              <th width="25%">วันที่</th>
+              <th width="25%" class="num" style="text-align:center;">ฝาก</th>
+              <th width="25%" class="num" style="text-align:center;">ถอน</th>
+              <th width="25%" class="num" style="text-align:center;">คงเหลือ</th>
+            </tr>
+          </thead>
           <tbody id="txnBody"></tbody>
         </table>
       </div>
@@ -215,6 +224,7 @@
       setTimeout(() => { el.innerHTML = ''; }, 5000); 
     }
     function fmt(n) { return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    
     async function api(action, payload = {}, token = '') {
       const res = await fetch(API_URL, {
         method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -222,6 +232,7 @@
       });
       return res.json();
     }
+    
     function hideAllViews() {
       ['authView', 'passbookView', 'adminLoginView', 'adminPanelView'].forEach(id => $('#'+id).classList.add('hidden'));
       $('#headerUser').classList.add('hidden');
@@ -275,26 +286,46 @@
     async function loadPassbook() {
       try {
         const r = await api('getTransactions', {}, localStorage.getItem(USER_TOKEN_KEY) || '');
-        if (!r.ok) { if (/Unauthorized|ปิด/.test(r.error)) { localStorage.removeItem(USER_TOKEN_KEY); showAuth(); showAlert('#authAlert', 'error', r.error); } return; }
+        if (!r.ok) { 
+          if (/Unauthorized|ปิด/.test(r.error)) { 
+            localStorage.removeItem(USER_TOKEN_KEY); 
+            showAuth(); 
+            showAlert('#authAlert', 'error', r.error); 
+          } 
+          return; 
+        }
+        
         hideAllViews();
-        $('#passbookView').classList.remove('hidden'); $('#headerUser').classList.remove('hidden');
+        $('#passbookView').classList.remove('hidden'); 
+        $('#headerUser').classList.remove('hidden');
+        
+        // อัปเดตข้อมูลส่วนตัว
         $('#headerName').textContent = r.user.nickname;
         $('#pbName').textContent = r.user.firstName + ' ' + r.user.lastName;
         $('#pbGrade').textContent = 'ชั้น ' + r.user.grade;
+        
+        // อัปเดตยอดคงเหลือล่าสุด (ดึงจาก Backend ตรงๆ)
         $('#pbBalance').textContent = fmt(r.summary.finalBalance);
-        $('#pbTotalDeposit').textContent = fmt(r.summary.totalDeposit);
-        $('#pbTotalWithdraw').textContent = fmt(r.summary.totalWithdraw);
-        $('#pbTotalTransfer').textContent = fmt(r.summary.totalTransfer);
-        $('#txnBody').innerHTML = r.transactions.length ? r.transactions.reverse().map(t => `
+        
+        // สร้างตารางรายการ (เรียงจากใหม่ไปเก่า)
+        $('#txnBody').innerHTML = r.transactions.length ? r.transactions.reverse().map(t => {
+          // จัดฟอร์แมตตัวเลขฝาก/ถอน ให้มี + หรือ - และถ้าเป็น 0 ให้แสดงเป็น -
+          const depText = t.deposit > 0 ? '+' + fmt(t.deposit) : '-';
+          const witText = t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-';
+          
+          return `
           <tr>
             <td>${t.date}</td>
-            <td class="num deposit">${t.deposit > 0 ? '+' + fmt(t.deposit) : '-'}</td>
-            <td class="num withdraw">${t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-'}</td>
+            <td class="num deposit">${depText}</td>
+            <td class="num withdraw">${witText}</td>
             <td class="num balance">${fmt(t.balance)}</td>
-          </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;">ไม่มีรายการ</td></tr>';
+          </tr>`;
+        }).join('') : '<tr><td colspan="4" style="text-align:center; padding: 30px; color: #999;">ยังไม่มีรายการฝาก-ถอน</td></tr>';
+        
         $('#pbUpdated').textContent = new Date().toLocaleTimeString('th-TH');
       } catch (e) { console.error(e); }
     }
+    
     function showAuth() { hideAllViews(); $('#authView').classList.remove('hidden'); }
     function logout() { localStorage.removeItem(USER_TOKEN_KEY); showAuth(); }
 
@@ -317,6 +348,7 @@
       $('#adminPanelView').classList.remove('hidden'); $('#headerAdmin').classList.remove('hidden');
       adminLoadPending(); adminLoadUsers();
     }
+    
     function adminLogout() { localStorage.removeItem(ADMIN_TOKEN_KEY); showAuth(); }
 
     async function adminLoadPending() {
@@ -326,18 +358,21 @@
       tbody.innerHTML = r.pending.map(u => `<tr><td>${u.nickname}</td><td>${u.firstName} ${u.lastName}</td>
         <td><button class="btn btn-primary" style="padding:4px 8px; font-size:12px;" onclick="adminApprove('${u.userId}')">อนุมัติ</button></td></tr>`).join('');
     }
+    
     async function adminLoadUsers() {
       const token = localStorage.getItem(ADMIN_TOKEN_KEY);
       const r = await api('adminGetAllUsers', {}, token); const tbody = $('#adminUsersBody');
       tbody.innerHTML = r.users.map(u => `<tr><td>${u.nickname}</td><td><span class="badge badge-${u.status.toLowerCase()}">${u.status}</span></td>
         <td>${u.status === 'Approved' ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:12px;" onclick="adminGenReport('${u.userId}')">📄 สร้างรายงาน</button>` : '-'}</td></tr>`).join('');
     }
+    
     async function adminApprove(id) { 
       if(!confirm('อนุมัติ?')) return; const token = localStorage.getItem(ADMIN_TOKEN_KEY);
       const r = await api('adminApprove', { userId: id }, token); 
       if(r.ok) { showAlert('#adminMainAlert', 'success', 'อนุมัติสำเร็จ'); adminLoadPending(); adminLoadUsers(); } 
       else showAlert('#adminMainAlert', 'error', r.error); 
     }
+    
     async function adminGenReport(id) { 
       if(!confirm('สร้าง PDF/JPG 12 เดือน?')) return; const token = localStorage.getItem(ADMIN_TOKEN_KEY);
       showAlert('#adminMainAlert', 'success', 'กำลังสร้างรายงาน...'); 
