@@ -1,0 +1,200 @@
+/* ============ Utilities ============ */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function showAlert(container, type, msg) {
+  const el = typeof container === 'string' ? $(container) : container;
+  if (!el) return;
+  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 6000);
+}
+
+function fmt(n) {
+  return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function api(action, payload = {}, token = '') {
+  const res = await fetch(window.APP_CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // เลี่ยง preflight
+    body: JSON.stringify({ action, payload, token }),
+    redirect: 'follow',
+  });
+  if (!res.ok) throw new Error('Network error: ' + res.status);
+  return res.json();
+}
+
+/* ============ Auth State ============ */
+const AUTH_KEY = 'saving_auth_token';
+
+function saveToken(t) { localStorage.setItem(AUTH_KEY, t); }
+function getToken() { return localStorage.getItem(AUTH_KEY) || ''; }
+function clearToken() { localStorage.removeItem(AUTH_KEY); }
+
+/* ============ Tabs ============ */
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    $('#loginForm').style.display = target === 'login' ? 'block' : 'none';
+    $('#registerForm').style.display = target === 'register' ? 'block' : 'none';
+  });
+});
+
+/* ============ Register ============ */
+$('#registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังสมัคร...';
+  try {
+    const r = await api('register', {
+      Nickname: fd.get('Nickname'),
+      FirstName: fd.get('FirstName'),
+      LastName: fd.get('LastName'),
+      Grade: fd.get('Grade'),
+      Password: fd.get('Password'),
+    });
+    if (r.ok) {
+      showAlert('#authAlert', 'success', '✅ ' + r.message);
+      e.target.reset();
+      setTimeout(() => {
+        $$('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelector('[data-tab="login"]').classList.add('active');
+        $('#registerForm').style.display = 'none';
+        $('#loginForm').style.display = 'block';
+      }, 1800);
+    } else {
+      showAlert('#authAlert', 'error', '❌ ' + (r.error || 'เกิดข้อผิดพลาด'));
+    }
+  } catch (err) {
+    showAlert('#authAlert', 'error', '❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="btn-label">สมัครสมาชิก</span>';
+  }
+});
+
+/* ============ Login ============ */
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const btn = e.target.querySelector('button');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> กำลังเข้าสู่ระบบ...';
+  try {
+    const r = await api('login', {
+      Nickname: fd.get('Nickname'),
+      Password: fd.get('Password'),
+    });
+    if (r.ok) {
+      saveToken(r.token);
+      await loadPassbook();
+    } else {
+      showAlert('#authAlert', 'error', '❌ ' + (r.error || 'เกิดข้อผิดพลาด'));
+    }
+  } catch (err) {
+    showAlert('#authAlert', 'error', '❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="btn-label">เข้าสู่ระบบ</span>';
+  }
+});
+
+/* ============ Load Passbook ============ */
+let pollTimer = null;
+
+async function loadPassbook() {
+  try {
+    const r = await api('getTransactions', {}, getToken());
+    if (!r.ok) {
+      if (r.error && /Unauthorized|หมดอายุ|ปิด/.test(r.error)) {
+        clearToken();
+        showAuth();
+        showAlert('#authAlert', 'error', '❌ ' + r.error);
+        return;
+      }
+      throw new Error(r.error || 'โหลดข้อมูลไม่ได้');
+    }
+    renderPassbook(r);
+  } catch (err) {
+    console.error(err);
+    if (/Unauthorized/.test(err.message)) {
+      clearToken();
+      showAuth();
+    }
+  }
+}
+
+function renderPassbook(data) {
+  $('#authView').style.display = 'none';
+  $('#passbookView').style.display = 'block';
+  $('#headerUser').style.display = 'flex';
+  $('#headerName').textContent = data.user.nickname + ' · ' + data.user.firstName;
+
+  $('#pbName').textContent = data.user.firstName + ' ' + data.user.lastName;
+  $('#pbGrade').textContent = 'ชั้น ' + data.user.grade + ' · บัญชี: ' + data.user.sheetName;
+  $('#pbBalance').textContent = fmt(data.summary.finalBalance);
+  $('#pbTotalDeposit').textContent = fmt(data.summary.totalDeposit);
+  $('#pbTotalWithdraw').textContent = fmt(data.summary.totalWithdraw);
+  $('#pbTotalTransfer').textContent = fmt(data.summary.totalTransfer);
+
+  const tbody = $('#txnBody');
+  if (!data.transactions.length) {
+    tbody.innerHTML = `<tr><td colspan="5">
+      <div class="empty-state"><div class="icon">📭</div>
+      <div>ยังไม่มีรายการฝาก-ถอน</div></div>
+    </td></tr>`;
+  } else {
+    tbody.innerHTML = data.transactions.reverse().map(t => `
+      <tr>
+        <td class="date">${t.date}</td>
+        <td class="num deposit">${t.deposit > 0 ? '+' + fmt(t.deposit) : '-'}</td>
+        <td class="num withdraw">${t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-'}</td>
+        <td class="num transfer hide-mobile">${t.transfer > 0 ? fmt(t.transfer) : '-'}</td>
+        <td class="num balance">${fmt(t.balance)}</td>
+      </tr>
+    `).join('');
+  }
+
+  $('#pbUpdated').textContent = new Date().toLocaleTimeString('th-TH');
+
+  // Auto-refresh
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (document.hidden) return;
+    try {
+      const r = await api('getTransactions', {}, getToken());
+      if (r.ok) renderPassbook(r);
+    } catch (e) { /* silent */ }
+  }, window.APP_CONFIG.POLL_INTERVAL_MS);
+}
+
+function showAuth() {
+  $('#authView').style.display = 'flex';
+  $('#passbookView').style.display = 'none';
+  $('#headerUser').style.display = 'none';
+  clearInterval(pollTimer);
+}
+
+async function logout() {
+  try { await api('logout', {}, getToken()); } catch (e) {}
+  clearToken();
+  showAuth();
+  showAlert('#authAlert', 'info', 'ออกจากระบบแล้ว');
+}
+
+async function refreshPassbook() {
+  await loadPassbook();
+}
+
+/* ============ Boot ============ */
+(async function boot() {
+  if (getToken()) {
+    try { await loadPassbook(); } catch (e) { clearToken(); showAuth(); }
+  } else {
+    showAuth();
+  }
+})();
