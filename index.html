@@ -91,7 +91,27 @@
         <div class="form-group"><label>ชื่อเล่น</label><input type="text" name="Nickname" required></div>
         <div class="form-group"><label>ชื่อ</label><input type="text" name="FirstName" required></div>
         <div class="form-group"><label>นามสกุล</label><input type="text" name="LastName" required></div>
-        <div class="form-group"><label>ชั้น</label><select name="Grade" required><option value="ป.6">ประถมศึกษาปีที่ 6</option></select></div>
+        
+        <!-- ✅ เพิ่มตัวเลือกชั้นเรียนให้ครบแล้ว -->
+        <div class="form-group">
+          <label>ชั้น</label>
+          <select name="Grade" required>
+            <option value="">-- เลือกชั้น --</option>
+            <option value="อ.1">อนุบาล 1</option>
+            <option value="อ.2">อนุบาล 2</option>
+            <option value="อ.3">อนุบาล 3</option>
+            <option value="ป.1">ประถมศึกษาปีที่ 1</option>
+            <option value="ป.2">ประถมศึกษาปีที่ 2</option>
+            <option value="ป.3">ประถมศึกษาปีที่ 3</option>
+            <option value="ป.4">ประถมศึกษาปีที่ 4</option>
+            <option value="ป.5">ประถมศึกษาปีที่ 5</option>
+            <option value="ป.6">ประถมศึกษาปีที่ 6</option>
+            <option value="ม.1">มัธยมศึกษาปีที่ 1</option>
+            <option value="ม.2">มัธยมศึกษาปีที่ 2</option>
+            <option value="ม.3">มัธยมศึกษาปีที่ 3</option>
+          </select>
+        </div>
+
         <div class="form-group"><label>รหัสผ่าน</label><input type="password" name="Password" required></div>
         <div class="form-group"><button type="submit" class="btn btn-primary"><span class="btn-label">สมัครสมาชิก</span></button></div>
       </form>
@@ -157,7 +177,7 @@
   <div class="secret-admin-dot" onclick="showAdminLogin()"></div>
 
   <script>
-    // ============ CONFIG (ใส่ URL ของคุณแล้ว) ============
+    // ============ CONFIG ============
     const API_URL = 'https://script.google.com/macros/s/AKfycbzXi6lTn7cPrlC-z9bOjsJORhgsBM-ymIj2vjfh8O03h79rV8QhM03cEJGpey110d58/exec';
     const USER_TOKEN_KEY = 'saving_auth_token';
     const ADMIN_TOKEN_KEY = 'saving_admin_token';
