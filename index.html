@@ -304,12 +304,25 @@
         $('#pbName').textContent = r.user.firstName + ' ' + r.user.lastName;
         $('#pbGrade').textContent = 'ชั้น ' + r.user.grade;
         
-        // อัปเดตยอดคงเหลือล่าสุด (ดึงจาก Backend ตรงๆ)
-        $('#pbBalance').textContent = fmt(r.summary.finalBalance);
+        // 🟢 คำนวณยอดคงเหลือแบบสะสม (Running Balance) เพื่อให้เป๊ะเหมือนในชีท
+        let runningBalance = r.transactions.length > 0 ? r.transactions[0].prevBalance : 0;
         
-        // สร้างตารางรายการ (เรียงจากใหม่ไปเก่า)
+        r.transactions.forEach(t => {
+            runningBalance += t.deposit;
+            runningBalance -= t.withdraw;
+            runningBalance -= t.transfer; // หักยอดโอนออก
+            t.calculatedBalance = runningBalance;
+        });
+
+        // อัปเดตยอดคงเหลือล่าสุดด้านบน (ใช้ยอดที่คำนวณได้จริงเพื่อความแม่นยำ)
+        if (r.transactions.length > 0) {
+            $('#pbBalance').textContent = fmt(r.transactions[r.transactions.length - 1].calculatedBalance);
+        } else {
+            $('#pbBalance').textContent = fmt(0);
+        }
+        
+        // สร้างตารางรายการ (เรียงจากใหม่ไปเก่า โดยใช้ยอด calculatedBalance)
         $('#txnBody').innerHTML = r.transactions.length ? r.transactions.reverse().map(t => {
-          // จัดฟอร์แมตตัวเลขฝาก/ถอน ให้มี + หรือ - และถ้าเป็น 0 ให้แสดงเป็น -
           const depText = t.deposit > 0 ? '+' + fmt(t.deposit) : '-';
           const witText = t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-';
           
@@ -318,7 +331,7 @@
             <td>${t.date}</td>
             <td class="num deposit">${depText}</td>
             <td class="num withdraw">${witText}</td>
-            <td class="num balance">${fmt(t.balance)}</td>
+            <td class="num balance">${fmt(t.calculatedBalance)}</td>
           </tr>`;
         }).join('') : '<tr><td colspan="4" style="text-align:center; padding: 30px; color: #999;">ยังไม่มีรายการฝาก-ถอน</td></tr>';
         
