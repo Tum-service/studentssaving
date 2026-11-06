@@ -230,11 +230,10 @@
 
     // ============ ADMIN DROPDOWN MENU ============
     function toggleAdminDropdown(event) {
-      if (event) event.stopPropagation(); // ป้องกันการปิดเมนูทันทีเมื่อกดที่ปุ่ม
+      if (event) event.stopPropagation();
       document.getElementById("adminDropdownMenu").classList.toggle("show-dropdown");
     }
 
-    // ปิด Dropdown เมื่อคลิกที่อื่นบนหน้าจอ
     window.addEventListener('click', function(event) {
       const dropdown = document.getElementById("adminDropdownMenu");
       if (dropdown && dropdown.classList.contains('show-dropdown')) {
