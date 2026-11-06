@@ -1,200 +1,260 @@
-/* ============ Utilities ============ */
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — ระบบฝากออมทรัพย์</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-function showAlert(container, type, msg) {
-  const el = typeof container === 'string' ? $(container) : container;
-  if (!el) return;
-  el.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
-  setTimeout(() => { el.innerHTML = ''; }, 6000);
-}
+<!-- ADMIN LOGIN -->
+<div id="adminLoginView" class="auth-wrap">
+  <div class="card auth-card">
+    <div class="brand">
+      <div class="logo">👑</div>
+      <h1>Admin Panel</h1>
+      <div class="hint">ระบบจัดการหลังบ้าน</div>
+    </div>
+    <div style="padding:24px;">
+      <div id="adminAlert"></div>
+      <form id="adminLoginForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="Username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="Password" required autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary btn-full" type="submit">
+          <span class="btn-label">เข้าสู่ระบบ</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
 
-function fmt(n) {
-  return Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+<!-- ADMIN PANEL -->
+<div id="adminPanelView" style="display:none;">
+  <div class="admin-header">
+    <div>
+      <h2 style="font-size:18px;">👑 Admin Panel</h2>
+      <div style="font-size:12px; opacity:.8; margin-top:2px;">จัดการผู้ใช้ & สร้างรายงาน</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="adminLogout()" style="color:white; border-color:rgba(255,255,255,.3)">ออก</button>
+  </div>
+  <div class="admin-wrap">
+    <div id="adminMainAlert"></div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>⏳ รออนุมัติ</h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadPending()">↻ รีเฟรช</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="admin-table" id="pendingTable">
+          <thead><tr>
+            <th>ชื่อเล่น</th><th>ชื่อ-สกุล</th><th>ชั้น</th><th>วันที่สมัคร</th><th>การจัดการ</th>
+          </tr></thead>
+          <tbody id="pendingBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>👥 ผู้ใช้ทั้งหมด</h2>
+        <button class="btn btn-ghost btn-sm" onclick="loadAllUsers()">↻ รีเฟรช</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="admin-table" id="allUsersTable">
+          <thead><tr>
+            <th>ชื่อเล่น</th><th>ชื่อ-สกุล</th><th>สถานะ</th><th>หมดอายุ</th><th>การจัดการ</th>
+          </tr></thead>
+          <tbody id="allUsersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-header">
+        <h2>📄 รายงาน (PDF/JPG) ใน Drive</h2>
+      </div>
+      <div class="card-body">
+        <p style="font-size:13px; color:#6b7685; margin-bottom:12px;">
+          ไฟล์รายงานจะถูกสร้างในโฟลเดอร์ Drive ที่ตั้งค่าไว้ — เดือนละ 1 ไฟล์ ต่อผู้ใช้
+        </p>
+        <div id="reportsList" style="font-size:13px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const AUTH_KEY = 'saving_admin_token';
+const saveToken = t => localStorage.setItem(AUTH_KEY, t);
+const getToken = () => localStorage.getItem(AUTH_KEY) || '';
+const clearToken = () => localStorage.removeItem(AUTH_KEY);
+
+function showAlert(sel, type, msg) {
+  $(sel).innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { $(sel).innerHTML = ''; }, 5000);
 }
 
 async function api(action, payload = {}, token = '') {
   const res = await fetch(window.APP_CONFIG.API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // เลี่ยง preflight
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action, payload, token }),
     redirect: 'follow',
   });
-  if (!res.ok) throw new Error('Network error: ' + res.status);
   return res.json();
 }
 
-/* ============ Auth State ============ */
-const AUTH_KEY = 'saving_auth_token';
-
-function saveToken(t) { localStorage.setItem(AUTH_KEY, t); }
-function getToken() { return localStorage.getItem(AUTH_KEY) || ''; }
-function clearToken() { localStorage.removeItem(AUTH_KEY); }
-
-/* ============ Tabs ============ */
-$$('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    $$('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const target = tab.dataset.tab;
-    $('#loginForm').style.display = target === 'login' ? 'block' : 'none';
-    $('#registerForm').style.display = target === 'register' ? 'block' : 'none';
-  });
-});
-
-/* ============ Register ============ */
-$('#registerForm').addEventListener('submit', async (e) => {
+/* Login */
+$('#adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const btn = e.target.querySelector('button');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> กำลังสมัคร...';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   try {
-    const r = await api('register', {
-      Nickname: fd.get('Nickname'),
-      FirstName: fd.get('FirstName'),
-      LastName: fd.get('LastName'),
-      Grade: fd.get('Grade'),
-      Password: fd.get('Password'),
-    });
-    if (r.ok) {
-      showAlert('#authAlert', 'success', '✅ ' + r.message);
-      e.target.reset();
-      setTimeout(() => {
-        $$('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('[data-tab="login"]').classList.add('active');
-        $('#registerForm').style.display = 'none';
-        $('#loginForm').style.display = 'block';
-      }, 1800);
-    } else {
-      showAlert('#authAlert', 'error', '❌ ' + (r.error || 'เกิดข้อผิดพลาด'));
-    }
-  } catch (err) {
-    showAlert('#authAlert', 'error', '❌ ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="btn-label">สมัครสมาชิก</span>';
-  }
-});
-
-/* ============ Login ============ */
-$('#loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const btn = e.target.querySelector('button');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> กำลังเข้าสู่ระบบ...';
-  try {
-    const r = await api('login', {
-      Nickname: fd.get('Nickname'),
-      Password: fd.get('Password'),
-    });
+    const r = await api('adminLogin', { Username: fd.get('Username'), Password: fd.get('Password') });
     if (r.ok) {
       saveToken(r.token);
-      await loadPassbook();
+      showPanel();
+      loadPending();
+      loadAllUsers();
+      loadReports();
     } else {
-      showAlert('#authAlert', 'error', '❌ ' + (r.error || 'เกิดข้อผิดพลาด'));
+      showAlert('#adminAlert', 'error', r.error || 'เกิดข้อผิดพลาด');
     }
-  } catch (err) {
-    showAlert('#authAlert', 'error', '❌ ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span class="btn-label">เข้าสู่ระบบ</span>';
-  }
+  } catch (err) { showAlert('#adminAlert', 'error', err.message); }
+  finally { btn.disabled = false; btn.innerHTML = '<span class="btn-label">เข้าสู่ระบบ</span>'; }
 });
 
-/* ============ Load Passbook ============ */
-let pollTimer = null;
-
-async function loadPassbook() {
-  try {
-    const r = await api('getTransactions', {}, getToken());
-    if (!r.ok) {
-      if (r.error && /Unauthorized|หมดอายุ|ปิด/.test(r.error)) {
-        clearToken();
-        showAuth();
-        showAlert('#authAlert', 'error', '❌ ' + r.error);
-        return;
-      }
-      throw new Error(r.error || 'โหลดข้อมูลไม่ได้');
-    }
-    renderPassbook(r);
-  } catch (err) {
-    console.error(err);
-    if (/Unauthorized/.test(err.message)) {
-      clearToken();
-      showAuth();
-    }
-  }
+function showPanel() {
+  $('#adminLoginView').style.display = 'none';
+  $('#adminPanelView').style.display = 'block';
 }
 
-function renderPassbook(data) {
-  $('#authView').style.display = 'none';
-  $('#passbookView').style.display = 'block';
-  $('#headerUser').style.display = 'flex';
-  $('#headerName').textContent = data.user.nickname + ' · ' + data.user.firstName;
+function adminLogout() {
+  clearToken();
+  $('#adminLoginView').style.display = 'flex';
+  $('#adminPanelView').style.display = 'none';
+}
 
-  $('#pbName').textContent = data.user.firstName + ' ' + data.user.lastName;
-  $('#pbGrade').textContent = 'ชั้น ' + data.user.grade + ' · บัญชี: ' + data.user.sheetName;
-  $('#pbBalance').textContent = fmt(data.summary.finalBalance);
-  $('#pbTotalDeposit').textContent = fmt(data.summary.totalDeposit);
-  $('#pbTotalWithdraw').textContent = fmt(data.summary.totalWithdraw);
-  $('#pbTotalTransfer').textContent = fmt(data.summary.totalTransfer);
-
-  const tbody = $('#txnBody');
-  if (!data.transactions.length) {
-    tbody.innerHTML = `<tr><td colspan="5">
-      <div class="empty-state"><div class="icon">📭</div>
-      <div>ยังไม่มีรายการฝาก-ถอน</div></div>
-    </td></tr>`;
-  } else {
-    tbody.innerHTML = data.transactions.reverse().map(t => `
+/* Pending */
+async function loadPending() {
+  try {
+    const r = await api('adminGetPending', {}, getToken());
+    const tbody = $('#pendingBody');
+    if (!r.ok) return showAlert('#adminMainAlert', 'error', r.error);
+    if (!r.pending.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#6b7685; padding:24px;">ไม่มีรายการรออนุมัติ</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = r.pending.map(u => `
       <tr>
-        <td class="date">${t.date}</td>
-        <td class="num deposit">${t.deposit > 0 ? '+' + fmt(t.deposit) : '-'}</td>
-        <td class="num withdraw">${t.withdraw > 0 ? '-' + fmt(t.withdraw) : '-'}</td>
-        <td class="num transfer hide-mobile">${t.transfer > 0 ? fmt(t.transfer) : '-'}</td>
-        <td class="num balance">${fmt(t.balance)}</td>
+        <td><b>${u.nickname}</b></td>
+        <td>${u.firstName} ${u.lastName}</td>
+        <td>${u.grade}</td>
+        <td style="font-size:12px; color:#6b7685;">${u.registeredDate}</td>
+        <td>
+          <button class="btn btn-success btn-sm" onclick="approve('${u.userId}')">✓ อนุมัติ</button>
+          <button class="btn btn-danger btn-sm" onclick="reject('${u.userId}')">✗ ปฏิเสธ</button>
+        </td>
       </tr>
     `).join('');
-  }
-
-  $('#pbUpdated').textContent = new Date().toLocaleTimeString('th-TH');
-
-  // Auto-refresh
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (document.hidden) return;
-    try {
-      const r = await api('getTransactions', {}, getToken());
-      if (r.ok) renderPassbook(r);
-    } catch (e) { /* silent */ }
-  }, window.APP_CONFIG.POLL_INTERVAL_MS);
+  } catch (e) { showAlert('#adminMainAlert', 'error', e.message); }
 }
 
-function showAuth() {
-  $('#authView').style.display = 'flex';
-  $('#passbookView').style.display = 'none';
-  $('#headerUser').style.display = 'none';
-  clearInterval(pollTimer);
+async function approve(id) {
+  if (!confirm('อนุมัติผู้ใช้นี้ และสร้างสมุดบัญชีอัตโนมัติ?')) return;
+  try {
+    const r = await api('adminApprove', { userId: id }, getToken());
+    if (r.ok) {
+      showAlert('#adminMainAlert', 'success', '✅ อนุมัติแล้ว — สร้างชีต: ' + r.sheetName);
+      loadPending(); loadAllUsers();
+    } else {
+      showAlert('#adminMainAlert', 'error', r.error);
+    }
+  } catch (e) { showAlert('#adminMainAlert', 'error', e.message); }
 }
 
-async function logout() {
-  try { await api('logout', {}, getToken()); } catch (e) {}
-  clearToken();
-  showAuth();
-  showAlert('#authAlert', 'info', 'ออกจากระบบแล้ว');
+async function reject(id) {
+  if (!confirm('ปฏิเสธผู้ใช้นี้?')) return;
+  try {
+    const r = await api('adminReject', { userId: id }, getToken());
+    if (r.ok) { showAlert('#adminMainAlert', 'success', 'ปฏิเสธแล้ว'); loadPending(); loadAllUsers(); }
+    else showAlert('#adminMainAlert', 'error', r.error);
+  } catch (e) { showAlert('#adminMainAlert', 'error', e.message); }
 }
 
-async function refreshPassbook() {
-  await loadPassbook();
+/* All users */
+async function loadAllUsers() {
+  try {
+    const r = await api('adminGetAllUsers', {}, getToken());
+    if (!r.ok) return;
+    const tbody = $('#allUsersBody');
+    const badgeMap = { Pending:'pending', Approved:'approved', Rejected:'rejected', Closed:'closed' };
+    const labelMap = { Pending:'รออนุมัติ', Approved:'อนุมัติ', Rejected:'ปฏิเสธ', Closed:'ปิดบัญชี' };
+    tbody.innerHTML = r.users.map(u => `
+      <tr>
+        <td><b>${u.nickname}</b></td>
+        <td>${u.firstName} ${u.lastName}</td>
+        <td><span class="badge badge-${badgeMap[u.status]}">${labelMap[u.status] || u.status}</span></td>
+        <td style="font-size:12px;">${u.expiry || '-'}</td>
+        <td>
+          ${u.status === 'Approved' ? `
+            <button class="btn btn-primary btn-sm" onclick="genReport('${u.userId}')">📄 สร้างรายงาน</button>
+          ` : '-'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { console.error(e); }
 }
 
-/* ============ Boot ============ */
-(async function boot() {
+async function genReport(id) {
+  if (!confirm('สร้างรายงาน PDF/JPG 12 เดือนสำหรับผู้ใช้นี้? (อาจใช้เวลาสักครู่)')) return;
+  showAlert('#adminMainAlert', 'info', '⏳ กำลังสร้างรายงาน... อาจใช้เวลา 1-2 นาที');
+  try {
+    const r = await api('adminGenerateReport', { userId: id }, getToken());
+    if (r.ok) {
+      showAlert('#adminMainAlert', 'success', '✅ สร้างเสร็จ: ' + r.result.filter(x=>!x.error).length + ' เดือน');
+      loadReports();
+    } else {
+      showAlert('#adminMainAlert', 'error', r.error);
+    }
+  } catch (e) { showAlert('#adminMainAlert', 'error', e.message); }
+}
+
+async function loadReports() {
+  try {
+    const r = await api('adminGetReports', {}, getToken());
+    if (!r.ok) return;
+    $('#reportsList').innerHTML = r.files.length ? r.files.map(f =>
+      `<div style="padding:6px 0; border-bottom:1px solid #eee;">
+        <a href="${f.url}" target="_blank" style="color:var(--primary); text-decoration:none;">${f.name}</a>
+      </div>`
+    ).join('') : '<div style="color:#6b7685;">ยังไม่มีไฟล์รายงาน</div>';
+  } catch (e) { console.error(e); }
+}
+
+/* Boot */
+(async function() {
   if (getToken()) {
-    try { await loadPassbook(); } catch (e) { clearToken(); showAuth(); }
-  } else {
-    showAuth();
+    // token exists but session may be expired; try to load pending
+    try {
+      const r = await api('adminGetPending', {}, getToken());
+      if (r.ok) { showPanel(); loadPending(); loadAllUsers(); loadReports(); }
+      else { clearToken(); }
+    } catch (e) { clearToken(); }
   }
 })();
+</script>
+</body>
+</html>
